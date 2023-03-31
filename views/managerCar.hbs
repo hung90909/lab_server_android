@@ -1,0 +1,27 @@
+<h3 style="font-weight: bold; margin-bottom: 30px;">Quản lý xe hơi</h3>
+<div class="float-right text-right">
+    <a href="/car/addCar" class="btn btn-primary ">Thêm xe</a>
+</div>
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Hãng Xe</th>
+            <th>Năm Sản Xuất</th>
+            <th>Giá Bán</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        {{#each items}}
+        <tr>
+            <td>{{this.ten}}</td>
+            <td>{{this.nam}}</td>
+            <td>{{this.giaBan}}</td>
+            <td>
+                <a href="/car/edit/{{this._id}}" class="btn btn-success">Edit</a>
+                <a href="/car/delete/{{this._id}}" class="btn btn-danger">Delete</a>
+            </td>
+        </tr>
+        {{/each}}
+    </tbody>
+</table>

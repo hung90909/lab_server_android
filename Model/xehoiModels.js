@@ -4,8 +4,8 @@ const Schema = mongoose.Schema;
 
 const xeHoi = new Schema({
     ten:String,
-    name:Number,
-    giaBan:Number
+    nam:Date,
+    giaBan:Number,
 
 })
 module.exports = mongoose.model("xeHoi",xeHoi)
