@@ -3,25 +3,34 @@ var passport = require('passport');
 var config = require('../config/database');
 require('../config/passport')(passport);
 var express = require('express');
-var jwt = require('jsonwebtoken');
-var router = express.Router();
-var User = require("../models/user");
-var Book = require("../models/book");
-
-const bodyParser = require("body-parser");
-
+var jwt = require('jsonwebtoken')
+var router = express.Router()
+var User = require("../models/user")
+var Book = require("../models/book")
+const bodyParser = require("body-parser")
+const cookieParser = require('cookie-parser');
 // // parse requests of content-type - application/json
 router.use(bodyParser.json());
-
+router.use(express.json())
+router.use(cookieParser());
 const parser = bodyParser.urlencoded({ extended: true });
 
 router.use(parser);
-
+router.get("/register", (req, res) => {
+    res.render("register")
+})
+router.get("/login", (req , res) =>{
+   res.render("login")
+})
 router.post('/signup', async function (req, res) {
-
-    if (!req.body.username || !req.body.password) {
-        res.json({ success: false, msg: 'Please pass username and password.' });
-    } else {
+    const user = await User.findOne({ username: req.body.username })
+    if (user) {
+        const err = "Email này đã tôn tại ! "
+        res.render("register", {
+            error: err
+        })
+    }
+    else {
         var newUser = new User({
             username: req.body.username,
             password: req.body.password
@@ -29,41 +38,72 @@ router.post('/signup', async function (req, res) {
         // save the user
         await newUser.save();
 
-        res.json({ success: true, msg: 'Successful created new user.' });
     }
 });
 
 
 router.post('/signin', async function (req, res) {
-
     console.log(req.body);
-
-    let user = await User.findOne({username: req.body.username});
-
+    let user = await User.findOne({ username: req.body.username });
     console.log(user);
-
     if (!user) {
-        res.status(401).send({ success: false, msg: 'Authentication failed. User not found.' });
+        const err = "Tài khoản không tồn tại !"
+        res.render("login", {
+            error: err
+        });
     } else {
         // check if password matches
         user.comparePassword(req.body.password, function (err, isMatch) {
             if (isMatch && !err) {
                 // if user is found and password is right create a token
-                var token = jwt.sign(user.toJSON(), config.secret);
-                // return the information including token as JSON
-                res.json({ success: true, token: 'JWT ' + token });
+                const token = jwt.sign({ user }, config.secret, { expiresIn: '15m' });
+                res.cookie('token', token, { httpOnly: true });
+                res.redirect('/api/book');
             } else {
-                res.status(401).send({ success: false, msg: 'Authentication failed. Wrong password.' });
+                const err = "Mật khẩu không chính xác !"
+                res.render("login", {
+                    error: err
+                });
             }
         });
     }
 });
 
+router.get('/book', verifyToken, async function (req, res) {
+    try {
+        let books = await Book.find();
+        if (books) {
+            res.render("home", {
+                books: books.map(book => book.toJSON())
+            });
+        }
+    } catch (err) {
+        console.log(err);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+});
 
-router.post('/book', passport.authenticate('jwt', { session: false }), function (req, res) {
-    var token = getToken(req.headers);
-    if (token) {
-        console.log(req.body);
+function verifyToken(req, res, next) {
+    const token = req.cookies.token;
+    if (!token) {
+        return res.redirect('/api/login');
+    }
+
+    jwt.verify(token, config.secret, function (err, decoded) {
+        if (err) {
+            return res.redirect('/api/login');
+        }
+        req.user = decoded.user;
+        next();
+    });
+}
+
+router.get("/addBooks", verifyToken, (req , res) =>{
+    res.render("addBooks")
+})
+
+router.post('/book',verifyToken, async function (req, res) {
+    // var token = getToken(req.headers);
         var newBook = new Book({
             isbn: req.body.isbn,
             title: req.body.title,
@@ -71,40 +111,13 @@ router.post('/book', passport.authenticate('jwt', { session: false }), function 
             publisher: req.body.publisher
         });
 
-        newBook.save(function (err) {
-            if (err) {
-                return res.json({ success: false, msg: 'Save book failed.' });
-            }
-            res.json({ success: true, msg: 'Successful created new book.' });
-        });
-    } else {
-        return res.status(403).send({ success: false, msg: 'Unauthorized.' });
-    }
+       await newBook.save()
+       .then(() =>{
+        res.redirect("/api/book")
+       })
+       .catch(err =>{
+        console.log(err);
+       })
 });
-
-
-router.get('/book', passport.authenticate('jwt', { session: false }), async function (req, res) {
-    var token = getToken(req.headers);
-    if (token) {
-        let books = await Book.find();
-
-        res.json(books);
-    } else {
-        return res.status(403).send({ success: false, msg: 'Unauthorized.' });
-    }
-});
-
-getToken = function (headers) {
-    if (headers && headers.authorization) {
-        var parted = headers.authorization.split(' ');
-        if (parted.length === 2) {
-            return parted[1];
-        } else {
-            return null;
-        }
-    } else {
-        return null;
-    }
-};
 
 module.exports = router;

@@ -1,4 +1,4 @@
 module.exports = {
   'secret': 'nodeauthsecret',
-  'database': 'mongodb+srv://duylh17:LYUw6K2jgVwoXBuC@cluster0.0n8qgpd.mongodb.net/?retryWrites=true&w=majority'
+  'database': 'mongodb://127.0.0.1:27017/test_JWT'
 };
